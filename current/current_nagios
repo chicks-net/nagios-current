@@ -1,0 +1,139 @@
+#!/usr/local/bin/perl
+
+# current_nagios - keep nagios current
+
+# modules
+use warnings;
+use strict;
+use feature qw(say);
+
+use Digest::MD5 qw(md5_hex); # md5sum compatible
+use File::Slurp;
+use Storable;
+
+# constants
+my $nagios_dir = '/etc/nagios';
+my $bounce_nagios_log = '/tmp/bouncenagios.out';
+my $storable = '/var/run/nagios_checksum.store';
+
+# sanity checks
+die "no $nagios_dir" unless -d $nagios_dir;
+chdir($nagios_dir);
+
+# first time mode
+my $first_time = 1;
+$first_time = 0 if -f $storable;
+
+# get list of files
+my $dh;
+opendir($dh,$nagios_dir) or die "couldn't opendir($nagios_dir): $!";
+my @files = grep { -f $_ } readdir($dh);
+closedir($dh);
+
+# read storable
+my $stored_md5;
+unless ($first_time) {
+	$stored_md5 = retrieve($storable);
+} else {
+	$stored_md5 = {};
+}
+
+# run through files
+my $bounce_nagios = 0;
+foreach my $f (sort @files) {
+	next if $f =~ /^\./;		# ignore hidden files
+	next if $f =~ /\.sw[p-z]$/;	# ignore vim swap files
+
+	my $content = read_file($f) ;
+	my $md5sum = md5_hex($content);
+	#say "$md5sum $f";
+
+	if ($first_time) {
+		$stored_md5->{$f} = $md5sum;
+	} else {
+		unless ( $stored_md5->{$f} eq $md5sum ) {
+			$bounce_nagios++;
+			$stored_md5->{$f} = $md5sum;
+			#say "$f changed";
+		}
+	}
+}
+
+# write storable
+store $stored_md5, $storable;
+
+# bounce nagios
+if ($bounce_nagios or $first_time) {
+	say "$bounce_nagios files changed, bouncing nagios...";
+
+	system("nagios -v nagios.cfg > $bounce_nagios_log");
+
+	if ($?) {
+		# shitism- could not bounce nagios
+		#warn "crap";
+		my $content = read_file($bounce_nagios_log) ;
+		sendmail('invalid config',$content);
+	} else {
+		# all is well
+		system("/usr/local/bin/bounce_nagios > $bounce_nagios_log");
+		my $content = read_file($bounce_nagios_log) ;
+		if ($?) {
+			# shitism- could not bounce nagios
+			sendmail('nagios failed to restart',$content);
+		}
+	}
+	
+	if (0) {
+		# testing
+		warn "success but sending email";
+		my $content = read_file($bounce_nagios_log) ;
+		sendmail('good nagios bounce',$content);
+	}
+}
+
+# emails an alert
+# args:
+#   quick : summary message
+#   msg : alert details
+# returns:
+#   0 : success
+#   1 : Required Params not provided
+#   2 : sendmail error
+sub sendmail {
+	my( $quick, $msg ) = @_;
+
+#	my $contacts = 'Christopher Hicks <chris.hicks@openx.org>';
+	my $contacts = 'Systems Issues <systems@openx.org>';
+
+	my $sendmail = "/usr/sbin/sendmail -t";
+	my $reply_to = "Reply-to: black team <black-team\@openx.org>\n";
+	my $trigger_type_msg = 'WARNING';
+
+	if (!$contacts or !$quick or !$msg) {
+		warn "Required parameters are not provided for notification.";
+		return 1;
+	}
+
+	eval {
+		#    $contacts =~ s/@/\\@/g;
+		my $subject = "Subject: Current Nagios $trigger_type_msg - $quick \n";
+		my $content = "$trigger_type_msg: $quick\n\n$msg";
+		my $send_to = "To: $contacts\n";
+		open(SENDMAIL, "|$sendmail") or die "Cannot open $sendmail: $!";
+		print SENDMAIL $reply_to;
+		print SENDMAIL $subject;
+		print SENDMAIL $send_to;
+		print SENDMAIL "Content-type: text/plain\n\n";
+		print SENDMAIL $content;
+		close(SENDMAIL);
+	};
+	if ($@) {
+		# sendmail error
+		return 2;
+	}
+
+	warn("$trigger_type_msg: $quick\n");
+	return 0;
+}
+
+
