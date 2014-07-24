@@ -30,19 +30,21 @@ use utils qw (%ERRORS &print_revision &support);
 sub print_help ();
 sub print_usage ();
 
-my ($opt_h, $opt_V);
-my ($result, $message);
+my ( $opt_h,  $opt_V );
+my ( $result, $message );
 
-$PROGNAME="check_read_only_fs";
+$PROGNAME = "check_read_only_fs";
 
 Getopt::Long::Configure('bundling');
 GetOptions(
-	"V"   => \$opt_V, "version"	=> \$opt_V,
-	"h"   => \$opt_h, "help"	=> \$opt_h,
+	"V"       => \$opt_V,
+	"version" => \$opt_V,
+	"h"       => \$opt_h,
+	"help"    => \$opt_h,
 );
 
 if ($opt_V) {
-	print_revision($PROGNAME, '1.0.0');
+	print_revision( $PROGNAME, '1.0.0' );
 	exit $ERRORS{'OK'};
 }
 
@@ -51,26 +53,26 @@ if ($opt_h) {
 	exit $ERRORS{'OK'};
 }
 
-$result = 'OK';
+$result  = 'OK';
 $message = '';
 
-open(my $filesystems,"<","/proc/mounts") or do {
-	$result = 'WARNING';
+open( my $filesystems, "<", "/proc/mounts" ) or do {
+	$result  = 'WARNING';
 	$message = "could not open /proc/mounts: $!";
 	goto EXIT_RESULTS;
 };
 
-while (my $filesystem = <$filesystems>) {
+while ( my $filesystem = <$filesystems> ) {
 	chomp($filesystem);
-	my ($device,$mountpoint,$fstype,$options) = split(/\s+/,$filesystem);
-	my ($writable) = split(/,/,$options);
+	my ( $device, $mountpoint, $fstype, $options ) = split( /\s+/, $filesystem );
+	my ($writable) = split( /,/, $options );
 	next unless $fstype eq 'ext3';
 
-	if ($writable eq 'ro') {
+	if ( $writable eq 'ro' ) {
 		$result = 'WARNING';
 		$message .= ", " if length $message;
 		$message .= "$mountpoint ($device) is read only";
-	}	
+	}
 }
 
 $message = 'all ext3 filesystems are writable' unless length $message;
@@ -83,16 +85,17 @@ $message = 'all ext3 filesystems are writable' unless length $message;
 #}
 
 EXIT_RESULTS:
-	print "READ_ONLY_FS $result: $message\n";
-	exit $ERRORS{$result};
+print "READ_ONLY_FS $result: $message\n";
+exit $ERRORS{$result};
 
 sub check_writable {
 	my ($mountpoint) = @_;
-	
+
 	system("touch $mountpoint/x");
 	if ($?) {
 		return 1;
 	}
+
 	#system("ls -l $mountpoint/x");
 	system("rm $mountpoint/x");
 	if ($?) {
@@ -109,7 +112,7 @@ sub print_usage () {
 }
 
 sub print_help () {
-	print_revision($PROGNAME, '1.0.0');
+	print_revision( $PROGNAME, '1.0.0' );
 	print "Copyright (c) 2010 Christopher Hicks\n";
 	print_usage();
 	print "\n";
