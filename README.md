@@ -11,4 +11,8 @@ TODO
 ----
 
 * register plugin and current on https://www.monitoringexchange.org/
-* pick a LICENSE
+
+LICENSE
+-------
+
+The plugins, scripts, and other content in this repo is licensed under the GPL2.
