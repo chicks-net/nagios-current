@@ -13,6 +13,15 @@ I'm going to toss my nagios/icinga plugins in here too.  They are:
 
 * `check_read_only_fs` - alert on read-only filesystems
 
+service naming convention
+-------------------------
+
+I would suggest that you name your services as follows:
+
+* `app_` : app-level checks at the server level
+* `meta_` : cluster-level checks (usually via localhost on the nagios server)
+* `sys_` : system-level checks (disk, CPU, load, etc.)
+
 TODO
 ----
 
