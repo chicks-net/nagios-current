@@ -1,6 +1,8 @@
 nagios-current
 ==============
 
+[![GPLv2 license](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://github.com/chicks-net/nagios-current/blob/master/LICENSE)
+
 Keep nagios current automatically by checking if any of the configs have changed and reloading.
 The `current_nagios` script makes sure the configs are valid before trying to reload nagios.
 This can save you many hours
@@ -25,7 +27,7 @@ I would suggest that you name your services as follows:
 TODO
 ----
 
-* register plugin and current on https://www.monitoringexchange.org/
+* split `check_read_only_fs` into its own repo
 
 LICENSE
 -------
